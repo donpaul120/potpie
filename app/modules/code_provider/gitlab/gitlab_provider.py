@@ -29,9 +29,17 @@ class GitLabProvider(ICodeProvider):
         Initialize GitLab provider.
 
         Args:
-            base_url: GitLab instance URL (default: https://gitlab.com)
+            base_url: GitLab instance URL (default: https://gitlab.com).
+                      python-gitlab appends /api/v4 automatically, so any
+                      trailing /api/v4 suffix is stripped here to avoid
+                      double-appending (e.g. CODE_PROVIDER_BASE_URL set
+                      to https://gitlab.com/api/v4 would otherwise 404).
         """
-        self.base_url = base_url.rstrip("/")
+        # Strip trailing slash and any /api/v4 suffix — python-gitlab adds it
+        base_url = base_url.rstrip("/")
+        if base_url.endswith("/api/v4"):
+            base_url = base_url[: -len("/api/v4")]
+        self.base_url = base_url
         self.client = None
         self.auth_method: Optional[AuthMethod] = None
 
@@ -721,8 +729,8 @@ class GitLabProvider(ICodeProvider):
                 else:
                     projects = []
             else:
-                # List all projects the authenticated user is a member of
-                projects = self.client.projects.list(membership=True, get_all=True)
+                # List projects the authenticated user is a member of (capped at 100)
+                projects = self.client.projects.list(membership=True, per_page=100, get_all=False)
 
         except Exception as e:
             logger.error(f"GitLabProvider: Failed to list repositories: {e}")
