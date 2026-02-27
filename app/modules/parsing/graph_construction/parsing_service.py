@@ -227,32 +227,34 @@ class ParsingService:
                     repo_path=repo_details.repo_path,
                     project_id=project_id,
                 )
-                # Fetch user's GitHub OAuth token from user_auth_providers table
+                # Fetch user OAuth token from user_auth_providers table (GitHub only)
                 user_token = None
-                try:
-                    github_service = GithubService(self.db)
-                    user_token = github_service.get_github_oauth_token(user_id)
-                    if user_token:
-                        logger.info(
-                            "Using user's GitHub OAuth token for cloning",
+                provider_type = os.getenv("CODE_PROVIDER", "github").lower()
+                if provider_type == "github":
+                    try:
+                        github_service = GithubService(self.db)
+                        user_token = github_service.get_github_oauth_token(user_id)
+                        if user_token:
+                            logger.info(
+                                "Using user's GitHub OAuth token for cloning",
+                                user_id=user_id,
+                                repo_name=repo_details.repo_name,
+                                token_prefix=user_token[:8] if len(user_token) > 8 else "short",
+                            )
+                        else:
+                            logger.warning(
+                                "No user GitHub OAuth token found - will use environment tokens",
+                                user_id=user_id,
+                                repo_name=repo_details.repo_name,
+                                reason="User may not have linked GitHub account or token expired",
+                            )
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to fetch user GitHub token - falling back to environment tokens",
                             user_id=user_id,
                             repo_name=repo_details.repo_name,
-                            token_prefix=user_token[:8] if len(user_token) > 8 else "short",
+                            error=str(e),
                         )
-                    else:
-                        logger.warning(
-                            "No user GitHub OAuth token found - will use environment tokens",
-                            user_id=user_id,
-                            repo_name=repo_details.repo_name,
-                            reason="User may not have linked GitHub account or token expired",
-                        )
-                except Exception as e:
-                    logger.exception(
-                        "Failed to fetch user GitHub token - falling back to environment tokens",
-                        user_id=user_id,
-                        repo_name=repo_details.repo_name,
-                        error=str(e),
-                    )
                 (
                     repo,
                     _owner,
