@@ -9,7 +9,6 @@ logger = setup_logger(__name__)
 
 class BaseTask(Task):
     _db = None
-    _loop = None
 
     @property
     def db(self):
@@ -59,22 +58,19 @@ class BaseTask(Task):
             except Exception:
                 logger.exception("Error during connection cleanup", task_id=task_id)
 
-    def _get_event_loop(self):
-        """
-        Returns a long-lived event loop for this worker process. Creates one if needed.
-        """
-        # Reuse a single loop per worker process to avoid cross-loop issues
-        if self._loop is None or self._loop.is_closed():
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-        return self._loop
-
     def run_async(self, coro):
         """
-        Run the given coroutine on the worker's long-lived event loop.
+        Run the given coroutine in a fresh event loop.
+
+        Using asyncio.run() (fresh loop per task) rather than a long-lived
+        reused loop ensures proper asyncio context isolation. Each task gets
+        its own Context, so OpenTelemetry span tokens created via
+        start_as_current_span() are always detached in the same Context they
+        were attached in — preventing the 'Token was created in a different
+        Context' ValueError that occurs when pydantic-ai sub-tasks inherit
+        a shared accumulated context from a long-lived loop.
         """
-        loop = self._get_event_loop()
-        return loop.run_until_complete(coro)
+        return asyncio.run(coro)
 
     def on_success(self, retval, task_id, args, kwargs):
         try:
