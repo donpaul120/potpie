@@ -2077,6 +2077,18 @@ class ParseHelper:
                 token = auth.password
                 token_source = "auth_password"
 
+            # Fall back to environment provider token if no token extracted from auth
+            if not token:
+                provider_type = os.getenv("CODE_PROVIDER", "github").lower()
+                if provider_type == "gitlab":
+                    token = os.getenv("GITLAB_TOKEN") or os.getenv("CODE_PROVIDER_TOKEN")
+                    if token:
+                        token_source = "env_gitlab_token"
+                elif provider_type not in ("local",):
+                    token = os.getenv("CODE_PROVIDER_TOKEN")
+                    if token:
+                        token_source = "env_code_provider_token"
+
             if token:
                 from urllib.parse import urlparse, urlunparse
 
@@ -2093,6 +2105,8 @@ class ParseHelper:
                     token_type = "pat"
                 elif token.startswith("github_pat_"):
                     token_type = "fine_grained_pat"
+                elif token.startswith("glpat-"):
+                    token_type = "gitlab_pat"
 
                 logger.info(
                     f"[Repomanager] Building authenticated URL for {repo_name}",
