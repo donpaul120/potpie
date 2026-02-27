@@ -49,14 +49,21 @@ class CodeProviderTool:
 
     @classmethod
     def initialize_tokens(cls):
+        provider_type = os.getenv("CODE_PROVIDER", "github").lower()
         token_string = os.getenv("GH_TOKEN_LIST", "")
         cls.gh_token_list = [
             token.strip() for token in token_string.split(",") if token.strip()
         ]
         if not cls.gh_token_list:
-            raise ValueError(
-                "GitHub token list is empty or not set in environment variables"
-            )
+            if provider_type == "github":
+                raise ValueError(
+                    "GitHub token list is empty or not set in environment variables"
+                )
+            else:
+                logger.info(
+                    f"GH_TOKEN_LIST not set; skipping GitHub token init for provider '{provider_type}'"
+                )
+                return
         logger.info(f"Initialized {len(cls.gh_token_list)} GitHub tokens")
 
     def __init__(self, sql_db: Session, user_id: str):
