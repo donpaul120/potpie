@@ -11,6 +11,7 @@ compatibility with all providers.
 import os
 
 from fastapi import Depends, Query, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.config_provider import config_provider
@@ -151,3 +152,22 @@ async def get_repo_structure(
     return await CodeProviderController(db).get_repo_structure(
         repo_name=repo_name, branch_name=branch_name
     )
+
+
+class SelectRepoRequest(BaseModel):
+    project_id: str
+    repo_id: str
+
+
+@router.post("/repos/select")
+async def select_repo(
+    body: SelectRepoRequest,
+    user=Depends(AuthService.check_auth),
+    db: Session = Depends(get_db),
+):
+    """
+    Record the user's repository selection for a given project.
+    The UI calls this before triggering a parse; the response is a no-op
+    acknowledgement — actual parsing is initiated by the caller on success.
+    """
+    return {"status": "ok", "project_id": body.project_id, "repo_id": body.repo_id}
