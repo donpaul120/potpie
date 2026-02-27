@@ -456,9 +456,10 @@ class CodeProviderFactory:
             gitlab_token = os.getenv("GITLAB_TOKEN")
             if gitlab_token:
                 logger.info("Using GITLAB_TOKEN for GitLab authentication")
-                provider = CodeProviderFactory.create_provider(provider_type=provider_type)
-                provider.authenticate(
-                    {"token": gitlab_token}, AuthMethod.PERSONAL_ACCESS_TOKEN
+                provider = CodeProviderFactory.create_provider(
+                    provider_type=provider_type,
+                    credentials={"token": gitlab_token},
+                    auth_method=AuthMethod.PERSONAL_ACCESS_TOKEN,
                 )
                 return provider
 
