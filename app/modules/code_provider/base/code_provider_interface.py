@@ -226,7 +226,7 @@ class ICodeProvider(ABC):
 
     @abstractmethod
     def list_user_repositories(
-        self, user_id: Optional[str] = None
+        self, user_id: Optional[str] = None, search: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """List repositories accessible to authenticated user."""
         pass

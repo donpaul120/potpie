@@ -299,7 +299,7 @@ class CodeProviderController:
             else:
                 def _list_repos_sync():
                     provider = CodeProviderFactory.create_provider()
-                    return provider.list_user_repositories()
+                    return provider.list_user_repositories(search=search_query)
 
                 repositories = await asyncio.to_thread(_list_repos_sync)
                 result = {"repositories": repositories}

@@ -712,25 +712,27 @@ class GitLabProvider(ICodeProvider):
     # ============ User/Organization Operations ============
 
     def list_user_repositories(
-        self, user_id: Optional[str] = None
+        self, user_id: Optional[str] = None, search: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """List repositories accessible to authenticated user."""
         self._ensure_authenticated()
 
         try:
+            kwargs: dict = {"per_page": 100, "get_all": False}
+            if search:
+                kwargs["search"] = search
+
             if user_id:
-                # Try to find user by username and list their projects
                 users = self.client.users.list(username=user_id, get_all=False)
                 if users:
-                    # List visible projects for this user
                     projects = self.client.projects.list(
-                        user_id=users[0].id, get_all=True
+                        user_id=users[0].id, **kwargs
                     )
                 else:
                     projects = []
             else:
-                # List projects the authenticated user is a member of (capped at 100)
-                projects = self.client.projects.list(membership=True, per_page=100, get_all=False)
+                # List projects the authenticated user is a member of
+                projects = self.client.projects.list(membership=True, **kwargs)
 
         except Exception as e:
             logger.error(f"GitLabProvider: Failed to list repositories: {e}")

@@ -71,7 +71,7 @@ async def get_user_repos(
     Provider-agnostic equivalent of /github/user-repos.
     """
     controller = CodeProviderController(db)
-    user_repo_list = await controller.get_user_repos(user=user, search=None)
+    user_repo_list = await controller.get_user_repos(user=user, search=search)
 
     # Add demo repos if not in development mode
     if not config_provider.get_is_development_mode():
@@ -93,21 +93,6 @@ async def get_user_repos(
             deduped_repos.append(repo)
 
     user_repo_list["repositories"] = deduped_repos
-
-    # Apply search filter
-    if search:
-        try:
-            search_query = controller._normalize_search_query(search)
-            if search_query:
-                user_repo_list["repositories"] = controller._filter_repositories(
-                    user_repo_list["repositories"], search_query
-                )
-        except HTTPException:
-            raise
-        except Exception as e:
-            from app.modules.utils.logger import setup_logger
-            logger = setup_logger(__name__)
-            logger.warning(f"Error filtering repositories: {str(e)}")
 
     # Pagination
     repos = user_repo_list["repositories"]
