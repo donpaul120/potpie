@@ -488,15 +488,15 @@ class CachingAnthropicModel(AnthropicModel):
     async def request(
         self,
         messages: list[ModelMessage],
-        *,
-        model_settings: ModelSettings | None = None,
+        model_settings: ModelSettings | None,
+        model_request_parameters: ModelRequestParameters,
     ):
         """
         Override request to intercept and log cache metrics from both
         non-streaming and streaming responses.
         """
         # Call parent's request method
-        result = await super().request(messages, model_settings=model_settings)
+        result = await super().request(messages, model_settings, model_request_parameters)
 
         # For non-streaming responses, cache metrics are already logged in _process_response
         # For streaming responses, we need to wrap the result to log metrics
