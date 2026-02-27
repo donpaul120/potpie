@@ -729,8 +729,8 @@ class GitLabProvider(ICodeProvider):
                 else:
                     projects = []
             else:
-                # List all projects the authenticated user is a member of
-                projects = self.client.projects.list(membership=True, get_all=True)
+                # List projects the authenticated user is a member of (capped at 100)
+                projects = self.client.projects.list(membership=True, per_page=100, get_all=False)
 
         except Exception as e:
             logger.error(f"GitLabProvider: Failed to list repositories: {e}")
