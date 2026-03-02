@@ -129,8 +129,8 @@ class AgentFactory:
         if config.provider == "anthropic":
             return {
                 "anthropic_thinking": {
-                    "type": "enabled",
-                    "budget_tokens": 8192,
+                    "type": "adaptive",
+                    "budget_tokens": 10000,
                 },
                 "extra_headers": {
                     "anthropic-beta": "interleaved-thinking-2025-05-14",
