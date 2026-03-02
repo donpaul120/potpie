@@ -130,7 +130,6 @@ class AgentFactory:
             return {
                 "anthropic_thinking": {
                     "type": "adaptive",
-                    "budget_tokens": 10000,
                 },
                 "extra_headers": {
                     "anthropic-beta": "interleaved-thinking-2025-05-14",
