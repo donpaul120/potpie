@@ -80,7 +80,7 @@ MODEL_CONFIG_MAP = {
     "anthropic/claude-opus-4-6": {
         "provider": "anthropic",
         "context_window": 200000,
-        "default_params": {"temperature": 0.3, "max_tokens": 8000},
+        "default_params": {"temperature": 0.3, "max_tokens": 16000},
         "capabilities": {
             "supports_pydantic": True,
             "supports_streaming": True,
