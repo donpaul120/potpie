@@ -136,6 +136,48 @@ configure_celery(queue_name)
 # during tool execution (prefork + asyncio contextvar mismatch).
 initialize_logfire_tracing(instrument_pydantic_ai=False)
 
+# Install a truly context-free OTEL tracer provider when tracing is disabled.
+# Even opentelemetry.trace.NoOpTracer calls use_span() which touches ContextVars,
+# and pydantic-ai has its own built-in OTEL tracing (independent of logfire) that
+# wraps tool calls with start_as_current_span(). When asyncio.run() creates a fresh
+# context per Celery task, the ContextVar tokens created inside async generators
+# cannot be reset in a different context, causing ValueError on span exit.
+# Only replace the provider when there is no real logfire token — if a token is
+# configured, real tracing is desired and the ContextVar issue should not occur
+# because logfire manages context propagation correctly.
+_logfire_token = os.getenv("LOGFIRE_TOKEN", "").strip()
+_otel_sdk_disabled = os.getenv("OTEL_SDK_DISABLED", "false").lower() in {"1", "true", "yes"}
+
+if not _logfire_token or _otel_sdk_disabled:
+    import contextlib as _contextlib
+    from opentelemetry import trace as _otel_trace
+    from opentelemetry.trace import INVALID_SPAN as _INVALID_SPAN
+
+    class _CeleryNoOpTracer:
+        """Tracer that never touches ContextVars - safe for Celery async tasks."""
+
+        @_contextlib.contextmanager
+        def start_as_current_span(self, *args, **kwargs):
+            yield _INVALID_SPAN
+
+        def start_span(self, *args, **kwargs):
+            return _INVALID_SPAN
+
+    class _CeleryNoOpTracerProvider:
+        def get_tracer(self, *args, **kwargs):
+            return _CeleryNoOpTracer()
+
+        def add_span_processor(self, *args, **kwargs):
+            pass
+
+        def force_flush(self, *args, **kwargs):
+            pass
+
+        def shutdown(self):
+            pass
+
+    _otel_trace.set_tracer_provider(_CeleryNoOpTracerProvider())
+
 
 def configure_litellm_for_celery():
     """
