@@ -1517,7 +1517,7 @@ class ConversationService:
             ) from e
 
     async def get_conversation_messages(
-        self, conversation_id: str, start: int, limit: int, user_id: str, order: str = "asc"
+        self, conversation_id: str, start: int, limit: int, user_id: str, order: str = "asc", slim: bool = False
     ) -> List[MessageResponse]:
         try:
             access_level = await self.check_conversation_access(
@@ -1558,6 +1558,22 @@ class ConversationService:
                         )
                         attachments = []
 
+                if slim and message.tool_calls:
+                    # Strip tool_response — contains raw tool output (file contents,
+                    # code analysis, etc.) which can be 50k+ chars per call.
+                    # Keep name + summary so the UI can still render step names.
+                    tool_calls = [
+                        {
+                            "call_id": tc.get("call_id", ""),
+                            "event_type": tc.get("event_type", ""),
+                            "tool_name": tc.get("tool_name", ""),
+                            "tool_call_details": tc.get("tool_call_details"),
+                        }
+                        for tc in message.tool_calls
+                    ]
+                else:
+                    tool_calls = message.tool_calls
+
                 message_responses.append(
                     MessageResponse(
                         id=message.id,
@@ -1572,8 +1588,8 @@ class ConversationService:
                         ),
                         has_attachments=message.has_attachments,
                         attachments=attachments,
-                        tool_calls=message.tool_calls,
-                        thinking=message.thinking,
+                        tool_calls=tool_calls,
+                        thinking=None if slim else message.thinking,
                     )
                 )
             return message_responses
