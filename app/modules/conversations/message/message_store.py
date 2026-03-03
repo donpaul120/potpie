@@ -36,8 +36,9 @@ class MessageStore(BaseStore):
         return result.scalar() or 0
 
     async def get_active_for_conversation(
-        self, conversation_id: str, offset: int, limit: int
+        self, conversation_id: str, offset: int, limit: int, order: str = "asc"
     ) -> List[Message]:
+        order_col = Message.created_at.desc() if order == "desc" else Message.created_at
         stmt = (
             select(Message)
             .where(
@@ -45,7 +46,7 @@ class MessageStore(BaseStore):
                 cast(Message.status, String) == MessageStatus.ACTIVE.value,
                 cast(Message.type, String) != MessageType.SYSTEM_GENERATED.value,
             )
-            .order_by(Message.created_at)
+            .order_by(order_col)
             .offset(offset)
             .limit(limit)
         )
