@@ -92,11 +92,11 @@ class ConversationController:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_conversation_messages(
-        self, conversation_id: str, start: int, limit: int
+        self, conversation_id: str, start: int, limit: int, order: str = "asc"
     ) -> List[MessageResponse]:
         try:
             result = await self.service.get_conversation_messages(
-                conversation_id, start, limit, self.user_id
+                conversation_id, start, limit, self.user_id, order
             )
             return result
         except ConversationNotFoundError as e:

@@ -142,6 +142,7 @@ class ConversationAPI:
         conversation_id: str,
         start: int = Query(0, ge=0),
         limit: int = Query(10, ge=1),
+        order: str = Query("asc", regex="^(asc|desc)$"),
         db: Session = Depends(get_db),
         async_db: AsyncSession = Depends(get_async_db),
         user=Depends(AuthService.check_auth),
@@ -153,7 +154,7 @@ class ConversationAPI:
 
         try:
             result = await controller.get_conversation_messages(
-                conversation_id, start, limit
+                conversation_id, start, limit, order
             )
             return result
         except Exception as e:

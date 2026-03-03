@@ -1517,7 +1517,7 @@ class ConversationService:
             ) from e
 
     async def get_conversation_messages(
-        self, conversation_id: str, start: int, limit: int, user_id: str
+        self, conversation_id: str, start: int, limit: int, user_id: str, order: str = "asc"
     ) -> List[MessageResponse]:
         try:
             access_level = await self.check_conversation_access(
@@ -1538,7 +1538,7 @@ class ConversationService:
                 )
 
             messages = await self.message_store.get_active_for_conversation(
-                conversation_id, start, limit
+                conversation_id, start, limit, order
             )
 
             message_responses = []
