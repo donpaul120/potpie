@@ -89,7 +89,7 @@ def initialize_logfire_tracing(
             logfire.instrument_litellm()
             logger.info("Instrumented LiteLLM for Logfire tracing")
         else:
-            logger.info("Skipping Pydantic AI / LiteLLM instrumentation (instrument_pydantic_ai=%s, OTEL_SDK_DISABLED=%s)", instrument_pydantic_ai, otel_disabled)
+            logger.info("Skipping Pydantic AI / LiteLLM instrumentation", instrument_pydantic_ai=instrument_pydantic_ai, otel_sdk_disabled=otel_disabled)
 
         _LOGFIRE_INITIALIZED = True
 
