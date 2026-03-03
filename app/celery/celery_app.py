@@ -131,27 +131,18 @@ def configure_celery(queue_prefix: str):
 
 configure_celery(queue_name)
 
-# Configure OTEL tracing for Celery workers.
+
+# pydantic-ai has built-in OTEL tracing that wraps every tool call with
+# tracer.start_as_current_span() (pydantic_ai/_agent_graph.py). Even
+# opentelemetry.trace.NoOpTracer calls use_span() which modifies ContextVars.
+# When asyncio.run() creates a fresh context per Celery task, ContextVar tokens
+# created inside async generators cannot be reset in a different context.
 #
-# pydantic-ai has built-in OTEL tracing that calls tracer.start_as_current_span()
-# on every tool call (pydantic_ai/_agent_graph.py). Even opentelemetry.trace.NoOpTracer
-# calls use_span() which modifies ContextVars. When asyncio.run() creates a fresh
-# context per Celery task, ContextVar tokens created inside async generators cannot
-# be reset in a different context, causing ValueError on span exit.
-#
-# When a real LOGFIRE_TOKEN is set: let logfire manage OTEL normally — it handles
-# context propagation correctly, so instrument_pydantic_ai must be False to prevent
-# the double-instrumentation ContextVar issue.
-#
-# When no token (local dev / CI): install our own context-free tracer provider BEFORE
-# logfire.configure() locks the provider. This must happen first — once the SDK
-# provider is set, OTEL will not allow it to be replaced.
+# These classes are defined at module level (safe — no OTEL API calls) so they
+# can be instantiated from the worker_process_init signal handler below.
 import contextlib as _contextlib
 from opentelemetry import trace as _otel_trace
 from opentelemetry.trace import INVALID_SPAN as _INVALID_SPAN
-
-_logfire_token = os.getenv("LOGFIRE_TOKEN", "").strip()
-_otel_sdk_disabled = os.getenv("OTEL_SDK_DISABLED", "false").lower() in {"1", "true", "yes"}
 
 
 class _CeleryNoOpTracer:
@@ -177,16 +168,6 @@ class _CeleryNoOpTracerProvider:
 
     def shutdown(self):
         pass
-
-
-if not _logfire_token or _otel_sdk_disabled:
-    # Set no-op provider BEFORE logfire.configure() so it cannot be overridden.
-    _otel_trace.set_tracer_provider(_CeleryNoOpTracerProvider())
-    # Skip logfire init — no token means nothing useful to initialize.
-else:
-    # Real token: initialize logfire but keep pydantic-ai uninstrumented to avoid
-    # the ContextVar issue from double-wrapping async generator tool spans.
-    initialize_logfire_tracing(instrument_pydantic_ai=False)
 
 
 def configure_litellm_for_celery():
@@ -398,6 +379,34 @@ def configure_litellm_for_celery():
         logger.debug("LiteLLM not available, skipping configuration")
     except Exception as e:
         logger.warning(f"Failed to configure LiteLLM for Celery: {e}", exc_info=True)
+
+
+@worker_process_init.connect
+def setup_worker_tracing(sender, **kwargs):
+    """
+    Configure OTEL tracing for this Celery worker process.
+
+    This MUST run in worker_process_init (not at module import time) because
+    celery_app.py is also imported by the API server to dispatch tasks. Running
+    set_tracer_provider() at module level would block the API server's logfire
+    from setting the real SDK provider (OTEL only allows one set_tracer_provider).
+
+    When no LOGFIRE_TOKEN: install our context-free no-op provider first, so
+    pydantic-ai's built-in OTEL spans are routed to a tracer that never touches
+    ContextVars — eliminating the 'Token was created in a different Context' error.
+
+    When LOGFIRE_TOKEN is set: initialize logfire normally with pydantic-ai
+    instrumentation disabled to avoid double-wrapping async generator tool spans.
+    """
+    logfire_token = os.getenv("LOGFIRE_TOKEN", "").strip()
+    otel_sdk_disabled = os.getenv("OTEL_SDK_DISABLED", "false").lower() in {"1", "true", "yes"}
+
+    if not logfire_token or otel_sdk_disabled:
+        _otel_trace.set_tracer_provider(_CeleryNoOpTracerProvider())
+        logger.info("Celery worker: installed context-free OTEL no-op tracer provider")
+    else:
+        initialize_logfire_tracing(instrument_pydantic_ai=False)
+        logger.info("Celery worker: initialized logfire tracing (pydantic-ai uninstrumented)")
 
 
 @worker_process_init.connect
