@@ -54,7 +54,7 @@ MODEL_CONFIG_MAP = {
     "anthropic/claude-sonnet-4-6": {
         "provider": "anthropic",
         "context_window": 200000,
-        "default_params": {"temperature": 0.3, "max_tokens": 32000},
+        "default_params": {"temperature": 0.3, "max_tokens": 64000},
         "capabilities": {
             "supports_pydantic": True,
             "supports_streaming": True,
