@@ -1,5 +1,6 @@
 """Agent factory for creating supervisor and delegate agents"""
 
+import os
 from typing import List, Dict, Callable, Any, cast
 from pydantic_ai import Agent, Tool, ModelSettings
 from pydantic_ai.mcp import MCPServerStreamableHTTP
@@ -116,7 +117,12 @@ class AgentFactory:
 
         Enables thinking whenever available: Anthropic (native) or OpenRouter-routed
         Gemini, GLM (z-ai), Kimi (moonshot). Returns empty dict when not supported.
+
+        Set LLM_THINKING_ENABLED=false to disable thinking (frees all max_tokens for text output).
         """
+        if os.getenv("LLM_THINKING_ENABLED", "true").lower() in {"0", "false", "no", "off"}:
+            return {}
+
         try:
             config = self.llm_provider.get_chat_provider_config()
         except Exception as e:
