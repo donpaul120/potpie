@@ -78,16 +78,18 @@ def initialize_logfire_tracing(
         )
         logfire.configure(**config_kwargs)
 
-        if instrument_pydantic_ai:
+        # Skip instrumentation when OTEL is fully disabled or explicitly disabled via parameter.
+        # instrument_pydantic_ai() wraps tool calls with span context management even with a
+        # NoOpTracer, causing ContextVar detach errors across asyncio.run() boundaries in Celery.
+        otel_disabled = os.getenv("OTEL_SDK_DISABLED", "false").lower() in {"1", "true", "yes"}
+        if instrument_pydantic_ai and not otel_disabled:
             logfire.instrument_pydantic_ai()
             logger.info("Instrumented Pydantic AI for Logfire tracing")
-        else:
-            logger.debug(
-                "Skipped Pydantic AI instrumentation (avoids OTel contextvar errors in Celery prefork)"
-            )
 
-        logfire.instrument_litellm()
-        logger.info("Instrumented LiteLLM for Logfire tracing")
+            logfire.instrument_litellm()
+            logger.info("Instrumented LiteLLM for Logfire tracing")
+        else:
+            logger.info("Skipping Pydantic AI / LiteLLM instrumentation (instrument_pydantic_ai=%s, OTEL_SDK_DISABLED=%s)", instrument_pydantic_ai, otel_disabled)
 
         _LOGFIRE_INITIALIZED = True
 
